@@ -145,6 +145,67 @@ def forward(self, x, src_mask):
 ```
 
 > lambda 参数列表: 返回表达式
+>
+> lambda 的作用：**包装成一个只接收单个参数的函数，把固定的 src_mask 捕获进去**
 
 ## 组装成 Encoder
 
+```python
+def forward(self, x, mask):
+    for layer in self.layers:
+        x = layer(x, mask)
+    return self.norm(x)
+```
+
+
+## Dncoder Block
+
+```python
+class Decoder(nn.Module):
+
+    def __init__(self, layers: nn.ModuleList):
+        super().__init__()
+        self.layers = layers
+        self.norm = LayerNormalization()
+
+    def forward(self, x, encoder_output, src_mask, tgt_mask):
+        for layer in self.layers:
+            x = layer(x, encoder_output, src_mask, tgt_mask)
+        return self.norm(x)
+```
+
+## Projection Layer(最后的线性层)
+
+```python
+def forward(self, x):
+    # (Batch, Seq_Len, d_model) --> (Batch, Seq_Len, Vocab_Len)
+    return torch.log_softmax(self.proj(x), dim = -1)
+```
+
+`d_model` 维映射成 `vocab_size` 个概率
+
+
+## Transformer
+
+传入的参数：
+
+- `encoder`: 编码器，多层 EncoderLayer + 最终 Norm
+- `decoder`: 解码器，多层 DncoderLayer + 最终 Norm
+- `src_embed`: 把 token 映射为 d_model 维向量
+- `tgt_embed`: 解码器端的词嵌入
+- `src_pos`: 给嵌入加位置信息
+- `tgt_pos`: 解码器端的位置编码
+- `projection_layer`: 把隐藏特征映射到词表概率
+
+把所有 `Transformer` 所需要的组件都包装在一个类里
+
+## Build Transformer 设置 `Transformer` 中用到的超参数
+
+```python
+def build_transformer(src_vocab_size: int, tgt_vocab_size: int, 
+                      src_seq_len: int, tgt_seq_len: int, 
+                      d_model: int=512, N: int=6, h: int=8, 
+                      dropout: float=0.1, d_ff: int=2048) -> Transformer:
+```
+
+- `N`: 重复的层数
