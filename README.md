@@ -2,6 +2,14 @@
 
 ![1790080570637](image/README/1790080570637.png)
 
+## Abstract
+
+- `model.py`: Transformer 组件实现
+- `train.py`: 启动训练
+- `dataset.py`: 将数据转换成可以训练模型的张量
+- `config.py`: 翻译任务配置
+
+
 ## Embedding + Positional Encoding
 
 **涉及代码：**
