@@ -209,3 +209,89 @@ def build_transformer(src_vocab_size: int, tgt_vocab_size: int,
 ```
 
 - `N`: 重复的层数
+
+## 构建训练代码
+
+
+> 准备数据、分词器
+
+
+### Tokenizer
+
+涉及代码：
+
+- `train.py`
+
+
+## 把数据（双语文本）转换成 Transformer 可以训练的格式
+
+转换数据的工具会在 `train.py` 中使用
+
+一般继承 `Dataset` 类数据就能被 `DataLoader` 批量读取
+
+数据格式：
+
+```
+[
+ {
+  "translation":{
+      "en":"I love you",
+      "zh":"我爱你"
+  }
+ }
+]
+```
+
+`Dataset` 的作用就是把他转换成：
+
+```
+encoder_input:
+[101, 23, 56, 89, 102, 0,0,0]
+
+decoder_input:
+[101, 77, 88, 99,0,0,0]
+
+label:
+[77,88,99,102,0,0,0]
+```
+
+的形式
+
+### class BilingualDataset
+
+```python
+def __init__(
+    self,
+    ds,               # 原始数据
+    tokenizer_src,    # 源语言 tokenizer
+    tokenizer_tgt,    # 目标语言 tokenizer
+    src_lang,         # 源语言 en
+    tgt_lang,         # 目标语言 zh
+    seq_len           # 句子最大长度
+):
+```
+
+## Config 配置训练任务
+
+涉及代码：
+
+- `config.py`
+
+```python
+def get_config():
+    return {
+        "batch_size": 8,
+        "num_epochs": 20,
+        "lr": 10**-4,
+        "seq_len": 350,
+        "d_model": 512,
+        "datasource": 'opus_books',
+        "lang_src": "en",
+        "lang_tgt": "it",
+        "model_folder": "weights",
+        "model_basename": "tmodel_",
+        "preload": "latest",
+        "tokenizer_file": "tokenizer_{0}.json",
+        "experiment_name": "runs/tmodel"
+    }
+```
