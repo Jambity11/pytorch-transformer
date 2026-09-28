@@ -2,27 +2,9 @@
 
 ![1790080570637](image/README/1790080570637.png)
 
-## 可复现的训练实验
+## 实验
 
 `train.py` 是唯一训练入口，负责数据划分、分词器训练、模型训练、验证、测试和保存结果。`model.py` 实现 Transformer，`dataset.py` 构造模型输入，`config.py` 保存默认参数。
-
-> **当前结果状态：**CPU 小样本实验已跑通，证明训练、绘图与评估流程可用；正式 GPU 全量训练尚未执行。下面的 CPU 曲线和指标不能代表模型的最终翻译质量。
-
-```mermaid
-flowchart LR
-    A[固定版本的 OPUS Books 数据] --> B[校验 SHA256 与固定随机种子]
-    B --> C[训练 / 验证 / 测试划分]
-    C --> D[只用训练集训练分词器]
-    D --> E[过滤过长句子并训练 Transformer]
-    E --> F[每轮记录训练与验证损失]
-    F --> G[按最低验证损失选权重]
-    G --> H[测试集损失、BLEU/CER/WER 与翻译样例]
-    H --> I[曲线、CSV 和 JSON 结果]
-```
-
-### 从零复现
-
-在项目目录运行。本机可先激活已有的 `transformer` 环境；租用 GPU 时，先确认镜像中的 PyTorch 可以识别 CUDA，再安装统一的 `requirements.txt`。该文件允许使用已安装的兼容 PyTorch 2.x。
 
 ```powershell
 python -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())"
@@ -63,7 +45,7 @@ python translate.py --run-dir runs/cpu-demo-512 --text "I love you."
 
 实验先按种子打乱，再抽样和划分为约 80%/10%/10%；分词器只在训练集上训练。每轮在验证集上计算损失，选择验证损失最低的权重，最后才在测试集评估。`test_loss` 覆盖过滤后的全部测试句；BLEU、CER、WER 使用 `--eval-samples` 指定数量的测试句（设为 `0` 则评估全部）。BLEU 越高越好，CER/WER 越低越好。实验使用贪心解码，译文和指标都由真实预测计算，不填入示例数字。
 
-### 已完成的 CPU 演示实验
+### CPU 演示实验
 
 使用固定种子 42 和 512 条抽样句对，长度过滤后训练/验证/测试集分别有 370/49/49 条。6 轮的训练与验证损失均下降；20 条测试句的 BLEU 为 0，模型还没有学会有效翻译。这个结果仅用于证明实验流程、图表和评估文件可以复现。具体指标见 [CPU 演示测试结果](examples/cpu_demo_512/test_results.json)。
 
