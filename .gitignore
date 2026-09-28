@@ -1,1 +1,8 @@
 .vscode/
+__pycache__/
+.hf_cache/
+opus_books_weights/
+tokenizer_*.json
+opus_books_en_it.parquet
+*.parquet.part
+runs/

@@ -1,0 +1,31 @@
+{
+  "source": {
+    "kind": "local_parquet",
+    "filename": "opus_books_en_it.parquet",
+    "sha256": "d08901362614143a6dafe23248dfeec63302d7e098b74a8c9565c71555b923cb"
+  },
+  "dataset_fingerprint": "45959b1e3b8b3890",
+  "original_examples": 32332,
+  "selected_examples": 512,
+  "split_before_filter": {
+    "train": 410,
+    "val": 51,
+    "test": 51
+  },
+  "split_after_filter": {
+    "train": 370,
+    "val": 49,
+    "test": 49
+  },
+  "source_vocab_size": 977,
+  "target_vocab_size": 990,
+  "split_seed": 42,
+  "tokenizer_training_split": "train",
+  "software": {
+    "torch": "2.0.1",
+    "datasets": "2.15.0",
+    "tokenizers": "0.13.3",
+    "numpy": "1.26.4",
+    "pyarrow": "14.0.2"
+  }
+}

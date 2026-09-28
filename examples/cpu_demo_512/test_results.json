@@ -1,0 +1,10 @@
+{
+  "test_loss": 5.101260451759611,
+  "bleu": 0.0,
+  "cer": 1.0,
+  "wer": 1.0,
+  "decoded_test_examples": 20,
+  "all_test_examples": 49,
+  "checkpoint": "best.pt",
+  "best_epoch": 6
+}

@@ -65,7 +65,7 @@ class FeedForwardBlock(nn.Module):
         super().__init__()
         self.linear_1 = nn.Linear(d_model, d_ff) # W1 and b1
         self.dropout = nn.Dropout(dropout)
-        self.linear_2 = nn.Linear(d_model, d_model) # W2 and b2
+        self.linear_2 = nn.Linear(d_ff, d_model) # W2 and b2
 
     def forward(self, x):
         # (Batch, Seq_Len, d_model) --> (Batch, Seq_Len, d_ff) --> (Batch, Seq_Len, d_model)
@@ -194,7 +194,7 @@ class ProjectionLayer(nn.Module):
 
     def forward(self, x):
         # (Batch, Seq_Len, d_model) --> (Batch, Seq_Len, Vocab_Len)
-        return torch.log_softmax(self.proj(x), dim = -1)
+        return self.proj(x)
 
 class Transformer(nn.Module):
 
@@ -238,7 +238,7 @@ def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int
     for _ in range(N):
         encoder_self_attention_block = MultiHeadAttentionBlock(d_model, h, dropout)
         feed_forward_block = FeedForwardBlock(d_model, d_ff, dropout)
-        encoder_block = EncoderBlock(d_model, encoder_self_attention_block, feed_forward_block, dropout)
+        encoder_block = EncoderBlock(encoder_self_attention_block, feed_forward_block, dropout)
         encoder_blocks.append(encoder_block)
 
     # Create the decoder blocks
@@ -247,12 +247,12 @@ def build_transformer(src_vocab_size: int, tgt_vocab_size: int, src_seq_len: int
         decoder_self_attention_block = MultiHeadAttentionBlock(d_model, h, dropout)
         decoder_cross_attention_block = MultiHeadAttentionBlock(d_model, h, dropout)
         feed_forward_block = FeedForwardBlock(d_model, d_ff, dropout)
-        decoder_block = DecoderBlock(d_model, decoder_self_attention_block, decoder_cross_attention_block, feed_forward_block, dropout)
+        decoder_block = DecoderBlock(decoder_self_attention_block, decoder_cross_attention_block, feed_forward_block, dropout)
         decoder_blocks.append(decoder_block)
     
     # Create the encoder and decoder
-    encoder = Encoder(d_model, nn.ModuleList(encoder_blocks))
-    decoder = Decoder(d_model, nn.ModuleList(decoder_blocks))
+    encoder = Encoder(nn.ModuleList(encoder_blocks))
+    decoder = Decoder(nn.ModuleList(decoder_blocks))
     
     # Create the projection layer
     projection_layer = ProjectionLayer(d_model, tgt_vocab_size)

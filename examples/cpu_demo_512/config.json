@@ -1,0 +1,14 @@
+{
+  "dataset_file": "opus_books_en_it.parquet",
+  "max_samples": 512,
+  "epochs": 6,
+  "batch_size": 8,
+  "seq_len": 64,
+  "d_model": 64,
+  "layers": 1,
+  "heads": 8,
+  "d_ff": 128,
+  "lr": 0.0001,
+  "seed": 42,
+  "eval_samples": 20
+}

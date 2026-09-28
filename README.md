@@ -2,13 +2,74 @@
 
 ![1790080570637](image/README/1790080570637.png)
 
-## Abstract
+## 可复现的训练实验
 
-- `model.py`: Transformer 组件实现
-- `train.py`: 启动训练
-- `dataset.py`: 将数据转换成可以训练模型的张量
-- `config.py`: 翻译任务配置
+`train.py` 是唯一训练入口，负责数据划分、分词器训练、模型训练、验证、测试和保存结果。`model.py` 实现 Transformer，`dataset.py` 构造模型输入，`config.py` 保存默认参数。
 
+> **当前结果状态：**CPU 小样本实验已跑通，证明训练、绘图与评估流程可用；正式 GPU 全量训练尚未执行。下面的 CPU 曲线和指标不能代表模型的最终翻译质量。
+
+```mermaid
+flowchart LR
+    A[固定版本的 OPUS Books 数据] --> B[校验 SHA256 与固定随机种子]
+    B --> C[训练 / 验证 / 测试划分]
+    C --> D[只用训练集训练分词器]
+    D --> E[过滤过长句子并训练 Transformer]
+    E --> F[每轮记录训练与验证损失]
+    F --> G[按最低验证损失选权重]
+    G --> H[测试集损失、BLEU/CER/WER 与翻译样例]
+    H --> I[曲线、CSV 和 JSON 结果]
+```
+
+### 从零复现
+
+在项目目录运行。本机可先激活已有的 `transformer` 环境；租用 GPU 时，先确认镜像中的 PyTorch 可以识别 CUDA，再安装统一的 `requirements.txt`。该文件允许使用已安装的兼容 PyTorch 2.x。
+
+```powershell
+python -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())"
+python -m pip install -r requirements.txt
+python train.py --smoke-test
+python download_data.py
+```
+
+`download_data.py` 从固定的 [OPUS Books en-it 版本](https://huggingface.co/datasets/Helsinki-NLP/opus_books)下载数据并核对 SHA256。若下载站点无法直连，可将本机已有的 `opus_books_en_it.parquet` 上传到项目目录后运行 `python download_data.py` 校验。训练时的 Hugging Face 缓存保存在项目内的 `.hf_cache/`，不会提交到 Git。
+
+CPU 流程验证命令（512 条抽样句对，6 轮）：
+
+```powershell
+python train.py --run-dir runs/cpu-demo-512 --dataset-file opus_books_en_it.parquet --max-samples 512 --epochs 6 --batch-size 8 --seq-len 64 --d-model 64 --layers 1 --heads 8 --d-ff 128 --eval-samples 20 --seed 42
+```
+
+计划在租用的 GPU 上使用完整数据运行的命令；最终的 batch size 应按显存调整：
+
+```powershell
+python train.py --run-dir runs/full-gpu --dataset-file opus_books_en_it.parquet --epochs 20 --batch-size 16 --seq-len 128 --d-model 256 --layers 4 --heads 8 --d-ff 1024 --eval-samples 500 --seed 42
+```
+
+续训时保留相同的实验目录，`--epochs` 填目标总轮数，例如从 6 轮继续到 10 轮：
+
+```powershell
+python train.py --run-dir runs/cpu-demo-512 --resume --epochs 10
+```
+
+训练完成后，可输入句子查看最优权重的实际译文：
+
+```powershell
+python translate.py --run-dir runs/cpu-demo-512 --text "I love you."
+```
+
+### 实验产物与评估口径
+
+每个 `runs/<实验名>/` 包含 `config.json`（训练参数）、`data_manifest.json`（数据 SHA256、划分数量、词表与软件版本）、`tokenizer_en.json`、`tokenizer_it.json`、`history.csv`、`loss_curve.png/svg`、`last.pt`、`best.pt`、`test_results.json` 和 `predictions.csv`。`runs/` 不提交到 Git；可展示的轻量结果可复制到 `examples/`，权重单独保存。
+
+实验先按种子打乱，再抽样和划分为约 80%/10%/10%；分词器只在训练集上训练。每轮在验证集上计算损失，选择验证损失最低的权重，最后才在测试集评估。`test_loss` 覆盖过滤后的全部测试句；BLEU、CER、WER 使用 `--eval-samples` 指定数量的测试句（设为 `0` 则评估全部）。BLEU 越高越好，CER/WER 越低越好。实验使用贪心解码，译文和指标都由真实预测计算，不填入示例数字。
+
+### 已完成的 CPU 演示实验
+
+使用固定种子 42 和 512 条抽样句对，长度过滤后训练/验证/测试集分别有 370/49/49 条。6 轮的训练与验证损失均下降；20 条测试句的 BLEU 为 0，模型还没有学会有效翻译。这个结果仅用于证明实验流程、图表和评估文件可以复现。具体指标见 [CPU 演示测试结果](examples/cpu_demo_512/test_results.json)。
+
+![CPU 演示实验的训练与验证损失曲线](examples/cpu_demo_512/loss_curve.png)
+
+## Transformer 实现笔记
 
 ## Embedding + Positional Encoding
 
@@ -53,7 +114,9 @@ $$
 ```
 
 
-## Feed-Forward Layer**涉及代码：**
+## Feed-Forward Layer
+
+**涉及代码：**
 
 **涉及代码：**
 
@@ -166,7 +229,7 @@ def forward(self, x, mask):
 ```
 
 
-## Dncoder Block
+## Decoder Block
 
 ```python
 class Decoder(nn.Module):
@@ -187,10 +250,10 @@ class Decoder(nn.Module):
 ```python
 def forward(self, x):
     # (Batch, Seq_Len, d_model) --> (Batch, Seq_Len, Vocab_Len)
-    return torch.log_softmax(self.proj(x), dim = -1)
+    return self.proj(x)
 ```
 
-`d_model` 维映射成 `vocab_size` 个概率
+`d_model` 维映射成 `vocab_size` 个原始分数，训练时交给 `CrossEntropyLoss`。
 
 
 ## Transformer
@@ -244,7 +307,7 @@ def build_transformer(src_vocab_size: int, tgt_vocab_size: int,
  {
   "translation":{
       "en":"I love you",
-      "zh":"我爱你"
+      "it":"Ti amo"
   }
  }
 ]
@@ -274,7 +337,7 @@ def __init__(
     tokenizer_src,    # 源语言 tokenizer
     tokenizer_tgt,    # 目标语言 tokenizer
     src_lang,         # 源语言 en
-    tgt_lang,         # 目标语言 zh
+    tgt_lang,         # 目标语言 it
     seq_len           # 句子最大长度
 ):
 ```
@@ -288,18 +351,17 @@ def __init__(
 ```python
 def get_config():
     return {
-        "batch_size": 8,
-        "num_epochs": 20,
-        "lr": 10**-4,
-        "seq_len": 350,
-        "d_model": 512,
-        "datasource": 'opus_books',
-        "lang_src": "en",
-        "lang_tgt": "it",
-        "model_folder": "weights",
-        "model_basename": "tmodel_",
-        "preload": "latest",
-        "tokenizer_file": "tokenizer_{0}.json",
-        "experiment_name": "runs/tmodel"
+        "dataset_file": None,
+        "max_samples": None,
+        "epochs": 20,
+        "batch_size": 16,
+        "seq_len": 128,
+        "d_model": 256,
+        "layers": 4,
+        "heads": 8,
+        "d_ff": 1024,
+        "lr": 1e-4,
+        "seed": 42,
+        "eval_samples": 100,
     }
 ```
